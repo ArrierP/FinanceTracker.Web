@@ -6,33 +6,51 @@ import { Plus, Edit2, Trash2 } from 'lucide-react';
 const Categories = () => {
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
-
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [formData, setFormData] = useState({ id: null, name: '', type: 'Expense' });
 
+    // 1. Định nghĩa hàm fetchCategories
     const fetchCategories = useCallback(async () => {
         try {
             const data = await categoryService.getAll();
-            setCategories(data || []);
+
+            // Lọc trùng tên ngay tại FE để đảm bảo giao diện không bị gấp đôi
+            const uniqueData = (data || []).filter((value, index, self) =>
+                index === self.findIndex((t) => t.name === value.name)
+            );
+
+            setCategories(uniqueData);
         } catch (err) {
             console.error(err);
             toast.error('Failed to load categories');
-
         } finally {
             setLoading(false);
         }
     }, []);
 
+    // 2. Gọi fetchCategories khi load trang (Chỉ dùng 1 useEffect duy nhất)
     useEffect(() => {
+        let isMounted = true; // Chống memory leak
+
         const loadData = async () => {
-            await fetchCategories();
+            if (isMounted) {
+                await fetchCategories();
+            }
         };
+
         loadData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+
+        return () => { isMounted = false; };
+    }, [fetchCategories]); // Dependency chuẩn là fetchCategories vì đã dùng useCallback
+
     const openModal = (cat = null) => {
-        if (cat) setFormData(cat);
-        else setFormData({ id: null, name: '', type: 'Expense' });
+        if (cat) {
+            // Chuyển đổi type từ số sang chữ để đồng bộ với <select>
+            const displayType = cat.type === 1 ? 'Income' : 'Expense';
+            setFormData({ ...cat, type: displayType });
+        } else {
+            setFormData({ id: null, name: '', type: 'Expense' });
+        }
         setIsModalOpen(true);
     };
 
@@ -44,10 +62,8 @@ const Categories = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            // Chuẩn hóa dữ liệu trước khi gửi
             const dataToSubmit = {
                 name: formData.name,
-                // Chuyển "Income" thành 1, "Expense" thành 2 (Khớp với Enum của bạn)
                 type: formData.type === 'Income' ? 1 : 2
             };
 
@@ -58,7 +74,7 @@ const Categories = () => {
             }
 
             toast.success('Category saved');
-            fetchCategories();
+            fetchCategories(); // Reload danh sách sau khi lưu
             closeModal();
         } catch (err) {
             console.error(err);
@@ -67,11 +83,11 @@ const Categories = () => {
     };
 
     const handleDelete = async (id) => {
-        if (confirm('Delete this category?')) {
+        if (window.confirm('Delete this category?')) {
             try {
                 await categoryService.delete(id);
                 toast.success('Deleted successfully');
-                fetchCategories();
+                fetchCategories(); // Reload danh sách sau khi xóa
             } catch (err) {
                 console.error(err);
                 toast.error('Delete failed');
@@ -79,10 +95,10 @@ const Categories = () => {
         }
     };
 
-    if (loading) return <div>Loading Categories...</div>;
+    if (loading) return <div className="p-10 text-center">Loading Categories...</div>;
 
     return (
-        <div>
+        <div className="p-4 md:p-0">
             <div className="mb-6 flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-slate-800">Categories</h2>
                 <button onClick={() => openModal()} className="btn-primary flex items-center gap-2">
@@ -93,8 +109,7 @@ const Categories = () => {
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                 {categories.map(cat => (
                     <div key={cat.id} className="glass group relative overflow-hidden rounded-2xl p-6 transition-all hover:-translate-y-1 hover:shadow-xl">
-                        {/* Thêm z-10 để đảm bảo nút nằm trên lớp glass */}
-                        <div className="absolute top-0 right-0 z-10 flex gap-2 p-4 opacity-0 transition-opacity group-hover:opacity-100">
+                        <div className="absolute top-2 right-2 z-10 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
                             <button
                                 onClick={(e) => { e.stopPropagation(); openModal(cat); }}
                                 className="p-2 bg-white/90 rounded-full text-indigo-600 hover:bg-white shadow-sm"
@@ -109,7 +124,6 @@ const Categories = () => {
                             </button>
                         </div>
 
-                        {/* Xử lý hiển thị dựa trên cả số (BE) và chữ (Mock) */}
                         <p className={`text-xs font-bold uppercase tracking-wider mb-2 ${(cat.type === 1 || cat.type === 'Income') ? 'text-emerald-500' : 'text-rose-500'
                             }`}>
                             {cat.type === 1 || cat.type === 'Income' ? 'Income' : 'Expense'}
@@ -129,13 +143,20 @@ const Categories = () => {
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
                                 <label className="mb-1 block text-sm font-medium">Name</label>
-                                <input required autoFocus type="text" className="input-field" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+                                <input
+                                    required
+                                    autoFocus
+                                    type="text"
+                                    className="input-field"
+                                    value={formData.name}
+                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                />
                             </div>
                             <div>
                                 <label className="mb-1 block text-sm font-medium">Type</label>
                                 <select
                                     className="input-field"
-                                    value={formData.type === 1 ? 'Income' : formData.type === 2 ? 'Expense' : formData.type}
+                                    value={formData.type}
                                     onChange={e => setFormData({ ...formData, type: e.target.value })}
                                 >
                                     <option value="Expense">Expense</option>
