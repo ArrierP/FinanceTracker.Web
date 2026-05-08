@@ -13,26 +13,33 @@ import Wallets from './pages/Wallets';
 import Categories from './pages/Categories';
 import Transactions from './pages/Transactions';
 import Admin from './pages/Admin';
+import ProtectedRoute from './services/protectRoute';
+
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Route chưa đăng nhập */}
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
         </Route>
-        
-        <Route element={<MainLayout />}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/wallets" element={<Wallets />} />
-          <Route path="/categories" element={<Categories />} />
-          <Route path="/transactions" element={<Transactions />} />
-          <Route path="/admin" element={<Admin />} />
+
+        {/* Route cần đăng nhập */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/wallets" element={<Wallets />} />
+            <Route path="/categories" element={<Categories />} />
+            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/admin" element={<Admin />} />
+          </Route>
         </Route>
-        
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+
       <ToastContainer position="bottom-right" autoClose={3000} />
     </BrowserRouter>
   );
