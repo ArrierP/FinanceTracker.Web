@@ -9,7 +9,7 @@ const Register = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  
+
   const { register } = useAuth();
   const navigate = useNavigate();
 
@@ -19,22 +19,39 @@ const Register = () => {
     setError(null);
     try {
       await register(email, password);
-      toast.success('Registration successful. Please log in.');
+      toast.success('Register successfully!');
       navigate('/login');
     } catch (err) {
-      setError(err.response?.data || 'Failed to register. Please try again.');
+      const serverError = err.response?.data;
+      let finalMessage = "An error occurred while register... Please try again.";
+
+      if (typeof serverError === 'string') {
+        finalMessage = serverError;
+      }
+      // Thêm kiểm tra .error vì Backend của bạn trả về { error: ex.Message }
+      else if (serverError?.error) {
+        finalMessage = serverError.error;
+      }
+      else if (serverError?.message) {
+        finalMessage = serverError.message;
+      }
+      else if (serverError?.errors) {
+        finalMessage = Object.values(serverError.errors).flat().join(', ');
+      }
+
+      setError(finalMessage);
+      toast.error(finalMessage);
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <div>
       <div className="mb-6">
         <h3 className="text-xl font-bold text-slate-800">Create an Account</h3>
         <p className="text-sm text-slate-500">Start managing your finances effectively.</p>
       </div>
-      
+
       {error && (
         <div className="bg-red-50 text-red-500 p-3 rounded-lg text-sm mb-4">
           {error}
@@ -77,20 +94,20 @@ const Register = () => {
         </div>
 
         <div>
-           <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-           <div className="relative">
-             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-               <Lock className="h-5 w-5 text-slate-400" />
-             </div>
-             <input
-               type="password"
-               required
-               className="input-field pl-10"
-               placeholder="••••••••"
-               value={password}
-               onChange={(e) => setPassword(e.target.value)}
-             />
-           </div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Lock className="h-5 w-5 text-slate-400" />
+            </div>
+            <input
+              type="password"
+              required
+              className="input-field pl-10"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
         </div>
 
         <button
